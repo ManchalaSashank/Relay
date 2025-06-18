@@ -1,20 +1,22 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useContext } from "react";
 import { useRouter } from "next/navigation";
-import { useUser } from "./UserContext";
+import { UserContext } from "./UserContext";
+
 
 export default function Router() {
+  const { username, id } = useContext(UserContext);
   const router = useRouter();
-  const { username, id } = useUser();
 
+  // Redirect to chat if username and id are set, otherwise redirect to login
   useEffect(() => {
     if (username && id) {
-      router.push("/chats");
+      router.push("/chat");
     } else {
       router.push("/login");
     }
-  }, [username, id]);
+  }, [username, id, router]);
 
-  return <div className="text-zinc-400 text-center mt-8">Checking authentication...</div>;
+  return null;
 }

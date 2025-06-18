@@ -1,43 +1,33 @@
 "use client";
 
-import { createContext, useEffect, useState, useContext } from "react";
-import axios from "@/utils/axios";
+import axios from "axios";
+import { createContext, useEffect, useState } from "react";
 
-export interface UserContextType {
-  username: string;
-  id: string;
-  setUsername: (username: string) => void;
-  setId: (id: string) => void;
-}
-
-export const UserContext = createContext<UserContextType>({
-  username: "",
-  id: "",
-  setUsername: () => {},
-  setId: () => {},
-});
+// --- User context for authentication state ---
+export const UserContext = createContext<any>(null);
 
 export function UserContextProvider({ children }: { children: React.ReactNode }) {
+  // --- State for username and user id ---
   const [username, setUsername] = useState("");
   const [id, setId] = useState("");
 
   useEffect(() => {
+    // --- Set axios defaults for API requests ---
+    axios.defaults.baseURL = "http://localhost:4000/api";
+    axios.defaults.withCredentials = true;
+
+    // --- Fetch user profile on mount ---
     axios.get("/auth/profile").then((res) => {
       if (res.data.valid) {
         setUsername(res.data.username);
         setId(res.data.userId);
       }
-    }).catch(() => {
-      setUsername("");
-      setId("");
     });
   }, []);
 
   return (
-    <UserContext.Provider value={{ username, setUsername, id, setId }}>
+    <UserContext.Provider value={{ username, id, setUsername, setId }}>
       {children}
     </UserContext.Provider>
   );
 }
-
-export const useUser = () => useContext(UserContext);
