@@ -1,4 +1,4 @@
-import Router from "@/utils/Router";
+import Router from "@/utils/router";
 
 export default function HomePage() {
   return <Router />;
