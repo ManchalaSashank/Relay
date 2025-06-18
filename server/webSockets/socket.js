@@ -65,14 +65,7 @@ function setupWebSocket(server) {
         [...wss.clients]
           .filter((c) => c.userId === recipient)
           .forEach((c) => {
-            c.send(
-              JSON.stringify({
-                text,
-                sender: connection.userId,
-                recipient,
-                _id: messageDoc._id,
-              })
-            );
+            c.send(JSON.stringify(messageDoc));
           });
       }
     });

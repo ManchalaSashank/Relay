@@ -1,11 +1,13 @@
 import mongoose from "mongoose";
 
+
+// This schema defines the structure of a message in a messaging application.
 const MessageSchema = new mongoose.Schema(
   {
     sender: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
     recipient: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
     text: { type: String },
-    file: { type: String }, // ✅ make sure this line is here
+    file: { type: String }, 
   },
   { timestamps: true }
 );

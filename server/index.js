@@ -7,6 +7,7 @@ import connectDB from "./config/db.js";
 import authRoutes from "./routes/auth.js";
 import messageRoutes from "./routes/message.js";
 import setupWebSocket from "./webSockets/socket.js";
+import userRoutes from "./routes/user.js";
 
 dotenv.config();
 connectDB();
@@ -25,6 +26,7 @@ app.use(
 // Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/messages", messageRoutes);
+app.use("/api/users", userRoutes);
 
 const PORT = process.env.PORT || 4000;
 const server = app.listen(PORT, () => console.log(`Server running on ${PORT}`));

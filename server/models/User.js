@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 
+// This schema defines the structure of a user in a messaging application.
 const UserSchema = new mongoose.Schema(
   {
     name: { type: String, required: true },
@@ -11,4 +12,3 @@ const UserSchema = new mongoose.Schema(
 
 const User = mongoose.model("User", UserSchema);
 export default User;
-// This code defines a Mongoose schema and model for a User in a MongoDB database.
