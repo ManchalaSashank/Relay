@@ -28,7 +28,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/messages", messageRoutes);
 app.use("/api/users", userRoutes);
 
-const PORT = process.env.PORT || 4000;
+const PORT = process.env.PORT;
 const server = app.listen(PORT, () => console.log(`Server running on ${PORT}`));
 
 setupWebSocket(server);
