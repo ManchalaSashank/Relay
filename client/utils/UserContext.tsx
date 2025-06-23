@@ -10,6 +10,7 @@ export function UserContextProvider({ children }: { children: React.ReactNode })
   // --- State for username and user id ---
   const [username, setUsername] = useState("");
   const [id, setId] = useState("");
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     // --- Set axios defaults for API requests ---
@@ -22,8 +23,13 @@ export function UserContextProvider({ children }: { children: React.ReactNode })
         setUsername(res.data.username);
         setId(res.data.userId);
       }
-    });
+      setLoading(false);
+    }).catch(() => setLoading(false));
   }, []);
+
+  if (loading) {
+    return null; // or a loading spinner/component
+  }
 
   return (
     <UserContext.Provider value={{ username, id, setUsername, setId }}>

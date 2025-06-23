@@ -88,7 +88,7 @@ const MessageBubble = memo(
 
 export default function ChatPage() {
   // --- Context and State ---
-  const { username, id, setUsername, setId } = useContext(UserContext);
+  const { username, id, setUsername, setId, loading } = useContext(UserContext);
   const [sidebarUsers, setSidebarUsers] = useState<User[]>([]);
   const [allUsers, setAllUsers] = useState<User[]>([]);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
@@ -97,6 +97,7 @@ export default function ChatPage() {
   const [text, setText] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [onlineUsers, setOnlineUsers] = useState<string[]>([]);
+  const [sending, setSending] = useState(false);
   const chatRef = useRef<HTMLDivElement>(null);
 
   // --- Move user to top of sidebar and persist order ---
@@ -187,9 +188,10 @@ export default function ChatPage() {
   // --- Send message (text or file) ---
   const sendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!socket || !selectedUser) return;
+    if (!socket || !selectedUser || sending) return;
 
     if (file) {
+      setSending(true);
       const formData = new FormData();
       formData.append("file", file);
       formData.append("recipient", selectedUser._id);
@@ -207,6 +209,7 @@ export default function ChatPage() {
       }
       setFile(null);
       setText("");
+      setSending(false);
     } else if (text.trim()) {
       const message = {
         recipient: selectedUser._id,
@@ -237,7 +240,12 @@ export default function ChatPage() {
                 <Avatar className="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center text-sm font-bold">
                   <AvatarFallback>{username?.slice(0, 2).toUpperCase()}</AvatarFallback>
                 </Avatar>
-                <span className="text-white font-medium text-sm truncate max-w-[80px]">@{username}</span>
+                
+                {/* <span className="text-white font-medium text-sm truncate max-w-[80px]">@{username}</span> */}
+                <span className="text-white font-medium text-sm truncate max-w-[80px]">
+                      {username ? `@${username}` : <span className="text-zinc-400 animate-pulse">Loading...</span>}
+                </span>
+
               </button>
             </DropdownMenu.Trigger>
             <DropdownMenu.Content
@@ -267,7 +275,8 @@ export default function ChatPage() {
                 onSelect={setSelectedUser}
               />
             ))
-          )}
+          )
+          }
         </div>
       </aside>
 
@@ -314,7 +323,6 @@ export default function ChatPage() {
             )
           ) : (
             <div className="flex flex-col items-center justify-center h-full text-zinc-500">
-              <span className="text-2xl mb-2">💬</span>
               <span>Select a user to start chatting</span>
             </div>
           )}
@@ -326,8 +334,9 @@ export default function ChatPage() {
             <div className="flex items-center gap-3">
               <img src={URL.createObjectURL(file)} alt="Preview" className="h-16 w-16 rounded-lg object-cover shadow-md" />
               <span className="text-sm text-zinc-300">{file.name}</span>
+              {sending && <span className="text-xs text-blue-400 animate-pulse ml-2">Uploading...</span>}
             </div>
-            <button type="button" onClick={() => setFile(null)} className="text-red-400 hover:text-red-600 text-sm font-medium">
+            <button type="button" onClick={() => setFile(null)} className="text-red-400 hover:text-red-600 text-sm font-medium" disabled={sending}>
               Cancel
             </button>
           </div>
@@ -340,6 +349,7 @@ export default function ChatPage() {
               <Paperclip className="w-5 h-5 text-zinc-400 hover:text-purple-400 transition" />
               <input
                 type="file"
+                accept="image/*"
                 className="hidden"
                 onChange={(e) => {
                   const selectedFile = e.target.files?.[0];
@@ -352,7 +362,7 @@ export default function ChatPage() {
               onChange={(e) => setText(e.target.value)}
               onKeyDown={handleTextareaKeyDown}
               placeholder="Type your message..."
-              className="flex-1 resize-none px-4 py-2 rounded-xl bg-zinc-800/80 text-white border border-zinc-700 shadow-inner focus:outline-none focus:ring-1 focus:ring-purple-500 focus:border-purple-500 transition font-medium placeholder:text-zinc-400 break-words"
+              className="flex-1 resize-none px-4 py-2 rounded-xl bg-zinc-800/80 text-white border border-zinc-700 shadow-inner focus:outline-none focus:ring-1 focus:ring-purple-500 focus:border-purple-500 transition font-medium placeholder:text-zinc-400 break-words hide-scrollbar"
               rows={1}
               maxLength={500}
               style={{ overflowX: "hidden", wordBreak: "break-word", whiteSpace: "pre-wrap" }}
@@ -360,9 +370,16 @@ export default function ChatPage() {
             <button
               type="submit"
               className="bg-gradient-to-br from-[#312e81] to-[#6d28d9] hover:from-[#3730a3] hover:to-[#7c3aed] px-5 py-2 rounded-lg text-white transition flex items-center justify-center shadow"
-              disabled={!text.trim() && !file}
+              disabled={(!text.trim() && !file) || sending}
             >
-              <Send className="w-5 h-5" />
+              {sending ? (
+                <svg className="animate-spin h-5 w-5 text-white" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                </svg>
+              ) : (
+                <Send className="w-5 h-5" />
+              )}
             </button>
           </form>
         )}
