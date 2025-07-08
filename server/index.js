@@ -6,8 +6,9 @@ import connectDB from "./config/db.js";
 
 import authRoutes from "./routes/auth.js";
 import messageRoutes from "./routes/message.js";
-import setupWebSocket from "./webSockets/socket.js";
 import userRoutes from "./routes/user.js";
+import { Server as SocketIOServer } from "socket.io";
+import setupSocket from "./webSockets/socket.js";
 
 dotenv.config();
 connectDB();
@@ -31,4 +32,11 @@ app.use("/api/users", userRoutes);
 const PORT = process.env.PORT;
 const server = app.listen(PORT, () => console.log(`Server running on ${PORT}`));
 
-setupWebSocket(server);
+const io = new SocketIOServer(server, {
+  cors: {
+    origin: "http://localhost:3000", 
+    credentials: true, 
+  },
+});
+
+setupSocket(io);

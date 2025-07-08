@@ -1,79 +1,57 @@
-import { WebSocketServer } from "ws";
 import jwt from "jsonwebtoken";
+import cookie from "cookie";
 import Message from "../models/Message.js";
 
-function setupWebSocket(server) {
-  const wss = new WebSocketServer({ server });
+function setupSocket(io) {
+  const onlineUsers = new Map();
 
-  wss.on("connection", (connection, req) => {
-    function notifyAboutOnlinePeople() {
-      const onlineUsers = [...wss.clients].map((c) => ({
-        userId: c.userId,
-        username: c.username,
-      }));
+  io.on("connection", (socket) => {
+    const cookiesHeader = socket.handshake?.headers?.cookie;
+    const tokenCookie = cookiesHeader ? cookie.parse(cookiesHeader).token : null;
 
-      wss.clients.forEach((client) => {
-        client.send(JSON.stringify({ online: onlineUsers }));
+    if (tokenCookie) {
+      jwt.verify(tokenCookie, process.env.JWT_SECRET, {}, (err, userData) => {
+        if (err) return;
+
+        socket.userId = userData.userId;
+        socket.username = userData.username;
+        onlineUsers.set(socket.id, {
+          userId: socket.userId,
+          username: socket.username,
+        });
+
+        broadcastOnlineUsers();
       });
     }
 
-    connection.isAlive = true;
-    connection.timer = setInterval(() => {
-      connection.ping();
-      connection.deathTimer = setTimeout(() => {
-        connection.isAlive = false;
-        clearInterval(connection.timer);
-        connection.terminate();
-        notifyAboutOnlinePeople();
-      }, 1000);
-    }, 5000);
-
-    connection.on("pong", () => {
-      clearTimeout(connection.deathTimer);
-    });
-
-    const cookies = req.headers.cookie;
-
-    if (cookies) {
-      const tokenCookie = cookies
-        .split(";")
-        .find((cookie) => cookie.trim().startsWith("token="));
-      if (tokenCookie) {
-        const token = tokenCookie.split("=")[1];
-        if (token) {
-          jwt.verify(token, process.env.JWT_SECRET, {}, (err, userData) => {
-            if (err) return;
-            connection.userId = userData.userId;
-            connection.username = userData.username;
-          });
-        }
-      }
-    }
-
-    notifyAboutOnlinePeople();
-
-    connection.on("message", async (message) => {
-      const { recipient, text } = JSON.parse(message.toString());
+    socket.on("message", async (data) => {
+      const { recipient, text } = data;
 
       if (recipient && text) {
         const messageDoc = await Message.create({
-          sender: connection.userId,
+          sender: socket.userId,
           recipient,
           text,
         });
 
-        [...wss.clients]
-          .filter((c) => c.userId === recipient)
-          .forEach((c) => {
-            c.send(JSON.stringify(messageDoc));
-          });
+        for (let [id, user] of onlineUsers.entries()) {
+          if (user.userId === recipient) {
+            io.to(id).emit("message", messageDoc);
+          }
+        }
       }
     });
-  });
 
-  wss.on("close", () => {
-    console.log("WebSocket closed");
+    socket.on("disconnect", () => {
+      onlineUsers.delete(socket.id);
+      broadcastOnlineUsers();
+    });
+
+    function broadcastOnlineUsers() {
+      const users = Array.from(onlineUsers.values());
+      io.emit("online", users);
+    }
   });
 }
 
-export default setupWebSocket;
+export default setupSocket;
