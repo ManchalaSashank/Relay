@@ -28,7 +28,7 @@ export function UserContextProvider({ children }: { children: React.ReactNode })
   }, []);
 
   if (loading) {
-    return null; // or a loading spinner/component
+    return null; 
   }
 
   return (

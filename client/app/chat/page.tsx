@@ -6,6 +6,7 @@ import axios from "@/utils/axios";
 import { Paperclip, Send, LogOut } from "lucide-react";
 import { Avatar, AvatarFallback } from "@radix-ui/react-avatar";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
+import { io, Socket } from "socket.io-client";
 
 // --- Types ---
 type User = { _id: string; name: string; username: string };
@@ -17,90 +18,71 @@ type Message = {
   createdAt?: string;
 };
 
-// --- Sidebar User Button (memoized) ---
-const SidebarUserButton = memo(
-  ({
-    user,
-    isSelected,
-    isOnline,
-    onSelect,
-  }: {
-    user: User;
-    isSelected: boolean;
-    isOnline: boolean;
-    onSelect: (user: User) => void;
-  }) => (
-    <button
-      onClick={() => onSelect(user)}
-      className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition shadow-sm relative group
-        ${isSelected ? "bg-gradient-to-r from-[#312e81]/80 to-[#6d28d9]/80 shadow-lg" : ""}
-        hover:bg-gradient-to-r hover:from-[#312e81]/70 hover:to-[#6d28d9]/70 hover:shadow-[0_2px_16px_0_rgba(109,40,217,0.14)] hover:scale-[1.03] focus:outline-none`}
-      style={{ transition: "box-shadow 0.18s, transform 0.18s, background 0.18s" }}
-    >
-      <Avatar className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-700 flex items-center justify-center text-base font-bold shadow group-hover:ring-1 group-hover:ring-purple-400 group-hover:ring-offset-1 group-hover:ring-offset-zinc-900 transition">
-        <AvatarFallback>{user.name?.slice(0, 2).toUpperCase()}</AvatarFallback>
-      </Avatar>
-      <div className="flex flex-col items-start">
-        <span className="font-semibold text-sm flex items-center gap-1">
-          {user.name}
-          {isOnline && <span className="ml-1 w-2 h-2 rounded-full bg-green-500 inline-block" />}
-        </span>
-        <span className="text-xs mt-0.5">
-          {isOnline ? <span className="text-green-400">Active</span> : <span className="text-zinc-400">Offline</span>}
-        </span>
-      </div>
-    </button>
-  )
-);
-
-// --- Message Bubble (memoized) ---
-const MessageBubble = memo(
-  ({ msg, isOwn }: { msg: Message; isOwn: boolean }) => (
-    <div className={`w-full flex ${isOwn ? "justify-end" : "justify-start"}`}>
-      <div
-        className={`px-4 py-2 rounded-2xl shadow-lg text-sm whitespace-pre-wrap break-words ${
-          isOwn
-            ? "bg-gradient-to-br from-[#312e81] to-[#6d28d9] text-white"
-            : "bg-zinc-800/90 text-zinc-200 border border-zinc-700"
-        }`}
-        style={{ maxWidth: "70%", overflowX: "hidden", wordBreak: "break-word", whiteSpace: "pre-wrap" }}
-      >
-        {msg.text && <p>{msg.text}</p>}
-        {msg.file && (
-          <div className="mt-2">
-            <img
-              src={msg.file}
-              alt="Sent"
-              className="rounded-lg max-w-xs cursor-pointer hover:scale-105 transition"
-              onClick={() => window.open(msg.file, "_blank")}
-            />
-          </div>
-        )}
-        <p className="text-[10px] text-right mt-1 text-zinc-400">
-          {msg.createdAt
-            ? new Date(msg.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
-            : "Sending..."}
-        </p>
-      </div>
+// --- Sidebar User Button ---
+const SidebarUserButton = memo(({ user, isSelected, isOnline, onSelect }: { user: User; isSelected: boolean; isOnline: boolean; onSelect: (user: User) => void }) => (
+  <button
+    onClick={() => onSelect(user)}
+    className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition shadow-sm relative group
+      ${isSelected ? "bg-gradient-to-r from-[#312e81]/80 to-[#6d28d9]/80 shadow-lg" : ""}
+      hover:bg-gradient-to-r hover:from-[#312e81]/70 hover:to-[#6d28d9]/70 hover:shadow-[0_2px_16px_0_rgba(109,40,217,0.14)] hover:scale-[1.03] focus:outline-none`}
+  >
+    <Avatar className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-700 flex items-center justify-center text-base font-bold">
+      <AvatarFallback>{user.name?.slice(0, 2).toUpperCase()}</AvatarFallback>
+    </Avatar>
+    <div className="flex flex-col items-start">
+      <span className="font-semibold text-sm flex items-center gap-1">
+        {user.name}
+        {isOnline && <span className="ml-1 w-2 h-2 rounded-full bg-green-500 inline-block" />}
+      </span>
+      <span className="text-xs mt-0.5">
+        {isOnline ? <span className="text-green-400">Active</span> : <span className="text-zinc-400">Offline</span>}
+      </span>
     </div>
-  )
-);
+  </button>
+));
+
+// --- Message Bubble---
+const MessageBubble = memo(({ msg, isOwn }: { msg: Message; isOwn: boolean }) => (
+  <div className={`w-full flex ${isOwn ? "justify-end" : "justify-start"}`}>
+    <div
+      className={`px-4 py-2 rounded-2xl shadow-lg text-sm whitespace-pre-wrap break-words ${
+        isOwn
+          ? "bg-gradient-to-br from-[#312e81] to-[#6d28d9] text-white"
+          : "bg-zinc-800/90 text-zinc-200 border border-zinc-700"
+      }`}
+      style={{ maxWidth: "70%" }}
+    >
+      {msg.text && <p>{msg.text}</p>}
+      {msg.file && (
+        <div className="mt-2">
+          <img
+            src={msg.file}
+            alt="Sent"
+            className="rounded-lg max-w-xs cursor-pointer hover:scale-105 transition"
+            onClick={() => window.open(msg.file, "_blank")}
+          />
+        </div>
+      )}
+      <p className="text-[10px] text-right mt-1 text-zinc-400">
+        {msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "Sending..."}
+      </p>
+    </div>
+  </div>
+));
 
 export default function ChatPage() {
-  // --- Context and State ---
-  const { username, id, setUsername, setId, loading } = useContext(UserContext);
+  const { username, id, setUsername, setId } = useContext(UserContext);
   const [sidebarUsers, setSidebarUsers] = useState<User[]>([]);
   const [allUsers, setAllUsers] = useState<User[]>([]);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
-  const [socket, setSocket] = useState<WebSocket | null>(null);
+  const [socket, setSocket] = useState<Socket | null>(null);
   const [text, setText] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [onlineUsers, setOnlineUsers] = useState<string[]>([]);
   const [sending, setSending] = useState(false);
   const chatRef = useRef<HTMLDivElement>(null);
 
-  // --- Move user to top of sidebar and persist order ---
   const moveUserToTop = (userId: string) => {
     setSidebarUsers((prev) => {
       const idx = prev.findIndex((u) => u._id === userId);
@@ -112,7 +94,6 @@ export default function ChatPage() {
     });
   };
 
-  // --- Fetch users and restore sidebar order ---
   useEffect(() => {
     axios.get("/users").then((res) => {
       const filtered = res.data.filter((user: User) => user._id !== id);
@@ -122,51 +103,45 @@ export default function ChatPage() {
         const order = JSON.parse(savedOrder) as string[];
         filtered.sort((a: User, b: User) => {
           const ai = order.indexOf(a._id), bi = order.indexOf(b._id);
-          if (ai === -1 && bi === -1) return 0;
-          if (ai === -1) return 1;
-          if (bi === -1) return -1;
-          return ai - bi;
+          return (ai === -1 ? 1 : ai) - (bi === -1 ? 1 : bi);
         });
       }
       setSidebarUsers(filtered);
     });
   }, [id]);
 
-  // --- WebSocket setup and message handling ---
   useEffect(() => {
-    const ws = new WebSocket("ws://localhost:4000");
-    setSocket(ws);
+    const s = io("http://localhost:4000", { withCredentials: true });
+    setSocket(s);
 
-    ws.addEventListener("message", (event) => {
-      const data = JSON.parse(event.data);
-      if (data.online) {
-        setOnlineUsers(data.online.map((u: any) => u.userId));
-        return;
-      }
-      if (data.sender) {
-        moveUserToTop(data.sender);
-        if (data.sender === selectedUser?._id) setMessages((prev) => [...prev, data]);
+    s.on("online", (users: any[]) => {
+      setOnlineUsers(users.map((u) => u.userId));
+    });
+
+    s.on("message", (data: any) => {
+      moveUserToTop(data.sender);
+      if (data.sender === selectedUser?._id) {
+        setMessages((prev) => [...prev, data]);
       }
     });
 
-    return () => ws.close();
+    return () => {
+      s.disconnect();
+    };
   }, [selectedUser?._id, allUsers]);
 
-  // --- Fetch messages for selected user ---
   useEffect(() => {
     if (selectedUser) {
       axios.get(`/messages/${selectedUser._id}`).then((res) => setMessages(res.data));
     }
   }, [selectedUser]);
 
-  // --- Auto-scroll chat to bottom on new message ---
   useEffect(() => {
     if (chatRef.current) {
       chatRef.current.scrollTo({ top: chatRef.current.scrollHeight, behavior: "auto" });
     }
   }, [selectedUser, messages.length]);
 
-  // --- Logout handler ---
   const logout = async () => {
     try {
       await axios.post("/auth/logout");
@@ -177,7 +152,6 @@ export default function ChatPage() {
     }
   };
 
-  // --- Send message on Enter (without Shift) ---
   const handleTextareaKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -185,7 +159,6 @@ export default function ChatPage() {
     }
   };
 
-  // --- Send message (text or file) ---
   const sendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!socket || !selectedUser || sending) return;
@@ -202,10 +175,10 @@ export default function ChatPage() {
         });
         const newMessage = res.data;
         setMessages((prev) => [...prev, newMessage]);
-        socket.send(JSON.stringify(newMessage));
+        socket.emit("message", newMessage);
         moveUserToTop(selectedUser._id);
       } catch {
-        // Optionally handle upload error
+        // optionally handle upload error
       }
       setFile(null);
       setText("");
@@ -217,13 +190,12 @@ export default function ChatPage() {
         text: text.trim(),
         createdAt: new Date().toISOString(),
       };
-      socket.send(JSON.stringify(message));
+      socket.emit("message", message);
       setMessages((prev) => [...prev, message]);
       moveUserToTop(selectedUser._id);
       setText("");
     }
   };
-
   // --- Main Render ---
   return (
     <div className="flex h-screen bg-gradient-to-br from-[#0a0a15] via-[#181825] to-[#10101a] text-white">
@@ -387,3 +359,4 @@ export default function ChatPage() {
     </div>
   );
 }
+
